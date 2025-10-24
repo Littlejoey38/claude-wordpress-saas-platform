@@ -305,6 +305,19 @@ export default function EditorPage() {
         ])
         break
 
+      case 'thinking':
+        // Add thinking message to chat
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: generateMessageId('thinking'),
+            role: 'thinking',
+            content: data.content,
+            timestamp,
+          },
+        ])
+        break
+
       case 'error':
         setMessages((prev) => [
           ...prev,

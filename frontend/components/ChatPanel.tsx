@@ -14,7 +14,7 @@ import type { SelectedBlock } from './WordPressIframe'
 
 export interface Message {
   id: string
-  role: 'user' | 'agent' | 'agent_action'
+  role: 'user' | 'agent' | 'agent_action' | 'thinking'
   content: string
   timestamp: Date
   icon?: string // For agent actions
@@ -139,6 +139,25 @@ export function ChatPanel({
                   {message.icon && <span className="text-sm mt-0.5">{message.icon}</span>}
                   <div className="text-sm text-muted-foreground italic">
                     {message.content}
+                  </div>
+                </div>
+              ) : message.role === 'thinking' ? (
+                // Thinking message - Extended thinking content
+                <div className="w-full max-w-full mb-2">
+                  <div className="rounded-lg border-2 border-purple-200 bg-purple-50/50 px-4 py-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Brain className="h-4 w-4 text-purple-600" />
+                      <span className="text-xs font-semibold text-purple-700">Extended Thinking</span>
+                    </div>
+                    <pre className="text-xs font-mono text-purple-900 whitespace-pre-wrap leading-relaxed overflow-x-auto">
+                      {message.content}
+                    </pre>
+                    <span className="mt-2 block text-xs text-purple-600 opacity-70">
+                      {message.timestamp.toLocaleTimeString('fr-FR', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </span>
                   </div>
                 </div>
               ) : (
