@@ -2,13 +2,22 @@
 
 import { useEffect, useRef, useState } from 'react'
 
+export interface SelectedBlock {
+  clientId: string
+  name: string
+  attributes: Record<string, any>
+  innerBlocks: number
+  index: number // Position of block in the blocks array (0-based)
+}
+
 export interface WordPressContext {
   current_post_id?: number
   post_title?: string
   post_status?: string
   post_type?: string
   blocks_count?: number
-  current_url?: string // Add current_url to context
+  current_url?: string
+  selected_block?: SelectedBlock // Block sélectionné par l'utilisateur
 }
 
 interface WordPressIframeProps {
@@ -17,11 +26,28 @@ interface WordPressIframeProps {
   onMessage?: (data: any) => void
   onContextUpdate?: (context: WordPressContext) => void
   onUrlChange?: (url: string) => void // New callback for URL changes
+  onIframeReady?: (iframeWindow: Window) => void // Callback when iframe window is ready
 }
 
-export function WordPressIframe({ wordpressUrl, initialUrl, onMessage, onContextUpdate, onUrlChange }: WordPressIframeProps) {
+export function WordPressIframe({ wordpressUrl, initialUrl, onMessage, onContextUpdate, onUrlChange, onIframeReady }: WordPressIframeProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const [wordpressContext, setWordpressContext] = useState<WordPressContext | null>(null)
+
+  // Call onIframeReady when iframe loads
+  useEffect(() => {
+    const iframe = iframeRef.current
+    if (!iframe) return
+
+    const handleLoad = () => {
+      if (iframe.contentWindow && onIframeReady) {
+        console.log('Iframe loaded, calling onIframeReady')
+        onIframeReady(iframe.contentWindow)
+      }
+    }
+
+    iframe.addEventListener('load', handleLoad)
+    return () => iframe.removeEventListener('load', handleLoad)
+  }, [onIframeReady])
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -64,9 +90,6 @@ export function WordPressIframe({ wordpressUrl, initialUrl, onMessage, onContext
         if (onContextUpdate) {
           onContextUpdate(context)
         }
-
-        // Also call generic message handler if provided
-        onMessage?.(event.data)
       }
 
       // Handle URL change messages (from global admin script)
@@ -81,6 +104,12 @@ export function WordPressIframe({ wordpressUrl, initialUrl, onMessage, onContext
         if (onUrlChange) {
           onUrlChange(url)
         }
+      }
+
+      // IMPORTANT: Always call generic message handler for ALL messages
+      // This includes get_blocks_structure_result and other command responses
+      if (event.data) {
+        onMessage?.(event.data)
       }
     }
 

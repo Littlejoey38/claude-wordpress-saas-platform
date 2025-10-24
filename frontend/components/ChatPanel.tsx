@@ -5,7 +5,12 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Send, Loader2, PlusCircle } from 'lucide-react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
+import { Send, Loader2, PlusCircle, Brain } from 'lucide-react'
+import { SelectedBlockBadge } from './SelectedBlockBadge'
+import { ToolsMenu, type Tool } from './ToolsMenu'
+import type { SelectedBlock } from './WordPressIframe'
 
 export interface Message {
   id: string
@@ -15,13 +20,19 @@ export interface Message {
   icon?: string // For agent actions
 }
 
+export type PermissionType = 'plan' | 'full'
+
 interface ChatPanelProps {
   messages: Message[]
   credits: number
-  onSendMessage: (message: string) => void
+  onSendMessage: (message: string, permissionType: PermissionType, extendedThinking: boolean) => void
   onNewConversation: () => void
   isLoading: boolean
   hasActiveConversation: boolean
+  selectedBlock?: SelectedBlock | null
+  onClearSelectedBlock?: () => void
+  tools: Tool[]
+  onToolsChange: (tools: Tool[]) => void
 }
 
 export function ChatPanel({
@@ -30,9 +41,15 @@ export function ChatPanel({
   onSendMessage,
   onNewConversation,
   isLoading,
-  hasActiveConversation
+  hasActiveConversation,
+  selectedBlock,
+  onClearSelectedBlock,
+  tools,
+  onToolsChange
 }: ChatPanelProps) {
   const [inputValue, setInputValue] = useState('')
+  const [permissionType, setPermissionType] = useState<PermissionType>('full')
+  const [extendedThinking, setExtendedThinking] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
@@ -50,7 +67,7 @@ export function ChatPanel({
       return
     }
 
-    onSendMessage(inputValue)
+    onSendMessage(inputValue, permissionType, extendedThinking)
     setInputValue('')
   }
 
@@ -70,9 +87,12 @@ export function ChatPanel({
             <h2 className="text-lg font-semibold">Claude WordPress Agent</h2>
             <p className="text-xs text-muted-foreground">Autonomous AI assistant</p>
           </div>
-          <Badge variant={credits > 0 ? "default" : "destructive"}>
-            {credits} credits
-          </Badge>
+          <div className="flex items-center gap-2">
+            <ToolsMenu tools={tools} onToolsChange={onToolsChange} />
+            <Badge variant={credits > 0 ? "default" : "destructive"}>
+              {credits} credits
+            </Badge>
+          </div>
         </div>
 
         {/* New Conversation Button */}
@@ -160,22 +180,58 @@ export function ChatPanel({
       {/* Input Area */}
       <div className="border-t p-4">
         <form onSubmit={handleSubmit} className="space-y-2">
+          {/* Selected Block Badge */}
+          {selectedBlock && onClearSelectedBlock && (
+            <SelectedBlockBadge
+              selectedBlock={selectedBlock}
+              onClear={onClearSelectedBlock}
+            />
+          )}
+
           <Textarea
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Decrivez ce que vous voulez creer..."
+            placeholder={
+              selectedBlock
+                ? `Modifier le block ${selectedBlock.name.split('/')[1]}...`
+                : "Decrivez ce que vous voulez creer..."
+            }
             className="min-h-[100px] resize-none"
             disabled={isLoading || credits === 0}
           />
           <div className="flex items-center justify-between">
-            <p className="text-xs text-muted-foreground">
+            <div className="flex items-center gap-3">
               {credits === 0 ? (
-                <span className="text-destructive">Credits epuises</span>
+                <p className="text-xs text-destructive">Credits epuises</p>
               ) : (
-                'Shift + Enter pour nouvelle ligne'
+                <>
+                  <Select value={permissionType} onValueChange={(value) => setPermissionType(value as PermissionType)}>
+                    <SelectTrigger className="w-[140px] h-8">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="plan">Plan Mode</SelectItem>
+                      <SelectItem value="full">Full Access</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      id="extended-thinking"
+                      checked={extendedThinking}
+                      onCheckedChange={setExtendedThinking}
+                      className="data-[state=checked]:bg-purple-600"
+                    />
+                    <label
+                      htmlFor="extended-thinking"
+                      className="flex items-center gap-1 text-xs font-medium cursor-pointer text-muted-foreground hover:text-foreground"
+                    >
+                      <Brain className="h-3.5 w-3.5" />
+                    </label>
+                  </div>
+                </>
               )}
-            </p>
+            </div>
             <Button
               type="submit"
               disabled={!inputValue.trim() || isLoading || credits === 0}
